@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Flappy AI Lab</title>
+        <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+        <style>
+            body {
+                background: #222;
+                color: white;
+                font-family: sans-serif;
+                display: flex;
+            }
+            #controls {
+                padding: 20px;
+            }
+            canvas {
+                border: 3px solid white;
+                background: #70c5ce;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="controls">
+            <h2>Panel IA</h2>
+            <label>Epsilon (Exploración):</label><br />
+            <input
+                type="range"
+                id="epsilon"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.1"
+                oninput="updateParams()"
+            /><br />
+            <label>Velocidad:</label><br />
+            <input
+                type="number"
+                id="speed"
+                value="0.02"
+                step="0.01"
+                onchange="updateParams()"
+            /><br />
+            <p>Score: <span id="score">0</span></p>
+            <p>Estados: <span id="q_size">0</span></p>
+            <button onclick="socket.emit('reset_training')">Resetear</button>
+        </div>
+        <script src="/static/js/canvas.js"></script>
+        <script src="/static/js/api.js"></script>
+    </body>
+</html>
