@@ -1,5 +1,7 @@
-import numpy as np
 import random
+
+import numpy as np
+
 
 class QLearningAgent:
     def __init__(self, alpha=0.1, gamma=0.99, epsilon=0.1):
@@ -22,4 +24,5 @@ class QLearningAgent:
     def learn(self, state, action, reward, next_state):
         old_q = self.get_q_values(state)[action]
         next_max = max(self.get_q_values(next_state))
-        self.q_table[state][action] = old_q + self.alpha * (reward + self.gamma * next_max - old_q)
+        new_q = old_q + self.alpha * (reward + self.gamma * next_max - old_q)
+        self.q_table[state][action] = new_q

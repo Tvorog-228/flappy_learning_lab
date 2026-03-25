@@ -1,51 +1,79 @@
 <!doctype html>
 <html>
     <head>
-        <title>Flappy AI Lab</title>
+        <title>AI Bird Dashboard</title>
         <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-        <style>
-            body {
-                background: #222;
-                color: white;
-                font-family: sans-serif;
-                display: flex;
-            }
-            #controls {
-                padding: 20px;
-            }
-            canvas {
-                border: 3px solid white;
-                background: #70c5ce;
-            }
-        </style>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="stylesheet" href="/static/css/style.css" />
     </head>
     <body>
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <div id="controls">
-            <h2>Panel IA</h2>
-            <label>Epsilon (Exploración):</label><br />
-            <input
-                type="range"
-                id="epsilon"
-                min="0"
-                max="1"
-                step="0.01"
-                value="0.1"
-                oninput="updateParams()"
-            /><br />
-            <label>Velocidad:</label><br />
-            <input
-                type="number"
-                id="speed"
-                value="0.02"
-                step="0.01"
-                onchange="updateParams()"
-            /><br />
-            <p>Score: <span id="score">0</span></p>
-            <p>Estados: <span id="q_size">0</span></p>
-            <button onclick="socket.emit('reset_training')">Resetear</button>
+        <div class="dashboard">
+            <div class="game-section">
+                <canvas id="gameCanvas" width="400" height="600"></canvas>
+                <div class="mini-stats">
+                    <span>Juego #<b id="game_number">0</b></span>
+                    <span>Score: <b id="score">0</b></span>
+                    <span>Max: <b id="max_score">0</b></span>
+                    <span>Q-Size: <b id="q_size">0</b></span>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <h2>⚙️ Configuración IA</h2>
+                <div class="control-group">
+                    <label>Alpha ($\alpha$):</label>
+                    <input
+                        type="number"
+                        id="alpha"
+                        value="0.1"
+                        step="0.01"
+                        onchange="updateParams()"
+                    />
+                </div>
+                <div class="control-group">
+                    <label>Gamma ($\gamma$):</label>
+                    <input
+                        type="number"
+                        id="gamma"
+                        value="0.99"
+                        step="0.01"
+                        onchange="updateParams()"
+                    />
+                </div>
+                <div class="control-group">
+                    <label>Epsilon ($\epsilon$):</label>
+                    <input
+                        type="range"
+                        id="epsilon"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="0.1"
+                        oninput="updateParams()"
+                    />
+                    <span id="eps_val">0.1</span>
+                </div>
+                <hr />
+                <h2>🚀 Modo Turbo</h2>
+                <input type="number" id="turbo_steps" value="100" />
+                <button onclick="startTurbo()" class="btn-turbo">
+                    Ejecutar Ciclo Turbo
+                </button>
+                <p id="turbo_progress">Esperando orden...</p>
+                <button onclick="resetMemoria()" class="btn-reset">
+                    Resetear Memoria
+                </button>
+            </div>
+
+            <div class="chart-section">
+                <canvas id="scoreChart"></canvas>
+            </div>
         </div>
-        <script src="/static/js/canvas.js"></script>
+
+        <script>
+            const socket = io(); // Definido globalmente una sola vez
+        </script>
         <script src="/static/js/api.js"></script>
+        <script src="/static/js/canvas.js"></script>
     </body>
 </html>
