@@ -61,3 +61,24 @@ function startTurbo() {
   const steps = parseInt(document.getElementById("turbo_steps").value);
   socket.emit("start_turbo", { steps: steps });
 }
+
+function resetMemoria() {
+  if (
+    confirm(
+      "¿Estás seguro? Esto borrará toda la Q-Table y el pájaro volverá a ser un novato.",
+    )
+  ) {
+    // Enviar evento al servidor
+    socket.emit("reset_training");
+
+    // Limpiar la gráfica y los textos localmente para feedback instantáneo
+    scoreChart.data.labels = [];
+    scoreChart.data.datasets[0].data = [];
+    scoreChart.update();
+
+    localMax = 0;
+    document.getElementById("max_score").innerText = "0";
+    document.getElementById("game_number").innerText = "0";
+    document.getElementById("q_size").innerText = "0";
+  }
+}

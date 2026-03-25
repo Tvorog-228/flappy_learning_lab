@@ -73,8 +73,8 @@ class FlappyEngine:
             next_pipe = valid_pipes[0]
 
         # Discretización (el resto sigue igual)
-        dx = int((next_pipe["x"] - 50) // 5)
-        dy = int((next_pipe["gap_y"] - self.bird_y) // 5)
+        dx = int((next_pipe["x"] - 50) // 15)
+        dy = int((next_pipe["gap_y"] - self.bird_y) // 10)
         v = int(self.bird_vel // 2)
 
         return (dx, dy, v)
