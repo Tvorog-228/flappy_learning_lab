@@ -76,7 +76,19 @@
                     />
                 </div>
 
-                <hr />
+                <div class="control-group">
+                    <label class="switch-label">
+                        <input
+                            type="checkbox"
+                            id="difficulty_toggle"
+                            onchange="toggleDifficulty()"
+                        />
+                        Dificultad Dinámica
+                    </label>
+                    <p style="font-size: 0.8em; color: #888">
+                        Tubos con huecos pequeños y movimiento aleatorio.
+                    </p>
+                </div>
 
                 <div class="control-group">
                     <button
@@ -91,9 +103,6 @@
                     </p>
                 </div>
 
-                <hr />
-
-                <h2>🚀 Modo Turbo</h2>
                 <div class="control-group">
                     <input type="number" id="turbo_steps" value="100" />
                     <button onclick="startTurbo()" class="btn-turbo">

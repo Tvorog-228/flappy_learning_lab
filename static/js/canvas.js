@@ -15,13 +15,9 @@ socket.on("game_state", (data) => {
   ctx.lineWidth = 2;
 
   data.pipes.forEach((p) => {
-    // Tubo superior
-    ctx.fillRect(p.x, 0, 50, p.gap_y - 80);
-    ctx.strokeRect(p.x, 0, 50, p.gap_y - 80);
-
-    // Tubo inferior
-    ctx.fillRect(p.x, p.gap_y + 80, 50, canvas.height);
-    ctx.strokeRect(p.x, p.gap_y + 80, 50, canvas.height);
+    const halfGap = (p.gap_size || 160) / 2; // Usamos el gap_size que viene de Python
+    ctx.fillRect(p.x, 0, 50, p.gap_y - halfGap); // Tubo superior
+    ctx.fillRect(p.x, p.gap_y + halfGap, 50, canvas.height); // Tubo inferior
   });
 
   // 4. Dibujar Pájaro (Agente IA)

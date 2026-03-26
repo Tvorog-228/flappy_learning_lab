@@ -125,6 +125,11 @@ function startTurbo() {
   });
 }
 
+function toggleDifficulty() {
+  const isChecked = document.getElementById("difficulty_toggle").checked;
+  socket.emit("toggle_difficulty", { active: isChecked });
+}
+
 function resetMemoria() {
   if (confirm("¿Resetear todo?")) {
     socket.emit("reset_training");

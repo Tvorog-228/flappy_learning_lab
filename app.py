@@ -36,6 +36,11 @@ def handle_reset():
     trainer.reset_full()
 
 
+@socketio.on("toggle_difficulty")
+def handle_difficulty(data):
+    trainer.game.dynamic_difficulty = data["active"]
+
+
 @socketio.on("start_turbo")
 def handle_turbo(data):
     steps = int(data.get("steps", 100))
