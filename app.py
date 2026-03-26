@@ -45,6 +45,25 @@ def handle_turbo(data):
     socketio.start_background_task(trainer.train_turbo, steps)
 
 
+@socketio.on("request_heatmap")
+def send_heatmap():
+    heatmap_data = []
+
+    condensed_q = {}
+
+    for state, actions in trainer.agent.q_table.items():
+        dx, dy, _ = state
+        max_val = max(actions)
+
+        if (dx, dy) not in condensed_q or max_val > condensed_q[(dx, dy)]:
+            condensed_q[(dx, dy)] = max_val
+
+    for (dx, dy), val in condensed_q.items():
+        heatmap_data.append({"dx": dx, "dy": dy, "value": val})
+
+    socketio.emit("update_heatmap", heatmap_data)
+
+
 if __name__ == "__main__":
     socketio.start_background_task(trainer.run)
     socketio.run(app, debug=True, port=5000)

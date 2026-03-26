@@ -1,19 +1,19 @@
 let localMax = 0;
-let scoresHistory = []; // NUEVO: Almacena los últimos scores para calcular la media
+let scoresHistory = [];
 
 // ==========================================
-// 1. CONFIGURACIÓN DE LA GRÁFICA (Chart.js)
+// 1. CONFIGURACIÓN DE LAS GRÁFICAS (Chart.js)
 // ==========================================
 const ctxChart = document.getElementById("scoreChart").getContext("2d");
 const scoreChart = new Chart(ctxChart, {
   type: "line",
   data: {
-    labels: [], // Números de episodio reales
+    labels: [],
     datasets: [
       {
         label: "Score",
         data: [],
-        borderColor: "#38bdf8", // Azul claro
+        borderColor: "#38bdf8",
         backgroundColor: "rgba(56, 189, 248, 0.1)",
         fill: true,
         tension: 0.1,
@@ -22,18 +22,18 @@ const scoreChart = new Chart(ctxChart, {
       {
         label: "Media (últimos 50)",
         data: [],
-        borderColor: "#f59e0b", // Naranja para destacar la tendencia
+        borderColor: "#f59e0b",
         backgroundColor: "transparent",
         borderWidth: 2,
-        pointRadius: 0, // Sin puntos para que sea una línea limpia
-        tension: 0.3, // Más suavizada
+        pointRadius: 0,
+        tension: 0.3,
       },
     ],
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
-    animation: false, // Desactivar animaciones mejora el rendimiento en Turbo
+    animation: false,
     scales: {
       y: { beginAtZero: true },
       x: { title: { display: true, text: "Episodio" } },
@@ -41,96 +41,117 @@ const scoreChart = new Chart(ctxChart, {
   },
 });
 
+// Canvas para el Heatmap
+const heatCanvas = document.getElementById("heatCanvas");
+const heatCtx = heatCanvas.getContext("2d");
+
 // ==========================================
 // 2. EVENTOS DEL SOCKET (Lógica de la IA)
 // ==========================================
+
 socket.on("episode_finished", (data) => {
-  // A. Actualizar textos de score y número de juego
+  // A. Actualizar textos
   document.getElementById("game_number").innerText = data.episode_number;
   if (data.score > localMax) {
     localMax = data.score;
     document.getElementById("max_score").innerText = localMax;
   }
 
-  // B. Calcular la Media Móvil
+  // B. Calcular Media Móvil
   scoresHistory.push(data.score);
-  if (scoresHistory.length > 50) {
-    scoresHistory.shift(); // Mantenemos solo los últimos 50 para la media
-  }
+  if (scoresHistory.length > 50) scoresHistory.shift();
   const sum = scoresHistory.reduce((a, b) => a + b, 0);
   const average = (sum / scoresHistory.length).toFixed(2);
 
-  // C. Actualizar Gráfica con ambos valores
+  // C. Actualizar Gráfica
   scoreChart.data.labels.push(data.episode_number);
   scoreChart.data.datasets[0].data.push(data.score);
-  scoreChart.data.datasets[1].data.push(average); // Añadimos la media
+  scoreChart.data.datasets[1].data.push(average);
 
-  // Mantenemos los últimos 100 puntos visuales para que la gráfica respire
   if (scoreChart.data.labels.length > 100) {
     scoreChart.data.labels.shift();
     scoreChart.data.datasets[0].data.shift();
-    scoreChart.data.datasets[1].data.shift(); // Desplazar también la media
+    scoreChart.data.datasets[1].data.shift();
   }
   scoreChart.update();
 
-  // D. Feedback si es Turbo (Nota: usa 'turbo_status' como en tu código original)
+  // D. Feedback Turbo
   let turboElem =
     document.getElementById("turbo_status") ||
     document.getElementById("turbo_progress");
   if (turboElem) {
-    if (data.is_turbo) {
-      turboElem.innerText = "🚀 Modo Turbo Activo...";
-    } else {
-      turboElem.innerText = "Esperando orden...";
-    }
+    turboElem.innerText = data.is_turbo
+      ? "🚀 Modo Turbo Activo..."
+      : "Esperando orden...";
   }
+
+  // E. PEDIR MAPA DE CALOR AL TERMINAR EPISODIO
+  socket.emit("request_heatmap");
+});
+
+// Listener para dibujar el Heatmap
+socket.on("update_heatmap", (data) => {
+  heatCtx.fillStyle = "#111"; // Fondo oscuro
+  heatCtx.fillRect(0, 0, heatCanvas.width, heatCanvas.height);
+
+  const cellSize = 10;
+  const offsetX = 0;
+  const offsetY = heatCanvas.height / 2;
+
+  data.forEach((point) => {
+    const x = point.dx * cellSize + offsetX;
+    const y = point.dy * cellSize + offsetY;
+
+    let color = "rgba(100, 100, 100, 0.5)";
+
+    if (point.value > 0) {
+      const intensity = Math.min(255, point.value * 10);
+      color = `rgb(0, ${intensity}, 0)`;
+    } else if (point.value < 0) {
+      const intensity = Math.min(255, Math.abs(point.value) * 10);
+      color = `rgb(${intensity}, 0, 0)`;
+    }
+
+    heatCtx.fillStyle = color;
+    heatCtx.fillRect(x, y, cellSize, cellSize);
+  });
 });
 
 // ==========================================
 // 3. FUNCIONES DE INTERFAZ (Botones)
 // ==========================================
+
 function startTurbo() {
   const steps = parseInt(document.getElementById("turbo_steps").value);
   socket.emit("start_turbo", { steps: steps });
 }
 
 function resetMemoria() {
-  if (
-    confirm(
-      "¿Estás seguro? Esto borrará toda la Q-Table y el pájaro volverá a ser un novato.",
-    )
-  ) {
+  if (confirm("¿Estás seguro? Esto borrará toda la Q-Table.")) {
     socket.emit("reset_training");
-
-    // Limpiar la gráfica, la media y los textos
     scoresHistory = [];
     scoreChart.data.labels = [];
     scoreChart.data.datasets[0].data = [];
     scoreChart.data.datasets[1].data = [];
     scoreChart.update();
-
     localMax = 0;
     document.getElementById("max_score").innerText = "0";
     document.getElementById("game_number").innerText = "0";
+    if (document.getElementById("q_size"))
+      document.getElementById("q_size").innerText = "0";
 
-    // Validar si existe el elemento antes de modificarlo para evitar errores
-    let qSizeElem = document.getElementById("q_size");
-    if (qSizeElem) qSizeElem.innerText = "0";
+    // Limpiar heatmap al resetear
+    heatCtx.fillStyle = "#111";
+    heatCtx.fillRect(0, 0, heatCanvas.width, heatCanvas.height);
   }
 }
 
 function updateParams() {
-  const alpha = parseFloat(document.getElementById("alpha").value);
-  const gamma = parseFloat(document.getElementById("gamma").value);
-  const epsilon = parseFloat(document.getElementById("epsilon").value);
-
   socket.emit("update_params", {
-    alpha: alpha,
-    gamma: gamma,
-    epsilon: epsilon,
+    alpha: parseFloat(document.getElementById("alpha").value),
+    gamma: parseFloat(document.getElementById("gamma").value),
+    epsilon: parseFloat(document.getElementById("epsilon").value),
   });
-
-  console.log(`🚀 Parámetros enviados: α=${alpha}, γ=${gamma}, ε=${epsilon}`);
 }
 
 function updateSpeed() {
@@ -140,16 +161,13 @@ function updateSpeed() {
 }
 
 // ==========================================
-// 4. RENDERIZADO DEL JUEGO (Canvas)
+// 4. RENDERIZADO DEL JUEGO (Canvas Principal)
 // ==========================================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 socket.on("game_state", (data) => {
-  // Limpiar el canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Fondo
   ctx.fillStyle = "#70c5ce";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -157,12 +175,9 @@ socket.on("game_state", (data) => {
   ctx.fillStyle = "#2e7d32";
   ctx.strokeStyle = "#1b4d1c";
   ctx.lineWidth = 2;
-
   data.pipes.forEach((p) => {
-    // Superior
     ctx.fillRect(p.x, 0, 50, p.gap_y - 80);
     ctx.strokeRect(p.x, 0, 50, p.gap_y - 80);
-    // Inferior
     ctx.fillRect(p.x, p.gap_y + 80, 50, canvas.height);
     ctx.strokeRect(p.x, p.gap_y + 80, 50, canvas.height);
   });
@@ -174,7 +189,7 @@ socket.on("game_state", (data) => {
   ctx.fillRect(50, data.bird_y, 30, 30);
   ctx.strokeRect(50, data.bird_y, 30, 30);
 
-  // Actualizar stats en tiempo real
+  // Stats
   if (document.getElementById("score"))
     document.getElementById("score").innerText = data.score;
   if (document.getElementById("q_size"))
