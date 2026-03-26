@@ -25,6 +25,12 @@ def handle_params(data):
     trainer.agent.epsilon = float(data["epsilon"])
 
 
+@socketio.on("update_speed")
+def handle_speed(data):
+    new_speed = data.get("speed", 1)
+    trainer.speed_multiplier = float(new_speed)
+
+
 @socketio.on("reset_training")
 def handle_reset():
     trainer.agent.q_table = {}

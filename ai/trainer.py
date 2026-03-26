@@ -11,8 +11,13 @@ class Trainer:
         self.socketio = socketio
         self.speed = 0.02
         self.max_score = 0
-        self.total_episodes = 0  # <--- CLAVE: Contador global persistente
+        self.total_episodes = 0
         self.is_turbo = False
+        self.base_delay = 0.02
+        self.speed_multiplier = 1
+
+    def set_speed(self, multiplier):
+        self.speed_multiplier = max(0.1, float(multiplier))
 
     def run(self):
         while True:
@@ -60,8 +65,7 @@ class Trainer:
                 },
             )
 
-            if self.speed > 0:
-                time.sleep(self.speed)
+            self.socketio.sleep(self.base_delay / self.speed_multiplier)
 
     def train_turbo(self, n_episodes):
         self.is_turbo = True
