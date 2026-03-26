@@ -1,8 +1,9 @@
 let localMax = 0;
 let scoresHistory = [];
+let isManual = false;
 
 // ==========================================
-// 1. CONFIGURACIÓN DE LAS GRÁFICAS (Chart.js)
+// 1. CONFIGURACIÓN DE LA GRÁFICA
 // ==========================================
 const ctxChart = document.getElementById("scoreChart").getContext("2d");
 const scoreChart = new Chart(ctxChart, {
@@ -16,7 +17,6 @@ const scoreChart = new Chart(ctxChart, {
         borderColor: "#38bdf8",
         backgroundColor: "rgba(56, 189, 248, 0.1)",
         fill: true,
-        tension: 0.1,
         pointRadius: 1,
       },
       {
@@ -41,31 +41,33 @@ const scoreChart = new Chart(ctxChart, {
   },
 });
 
-// Canvas para el Heatmap
 const heatCanvas = document.getElementById("heatCanvas");
-const heatCtx = heatCanvas.getContext("2d");
+const heatCtx = heatCanvas ? heatCanvas.getContext("2d") : null;
 
 // ==========================================
-// 2. EVENTOS DEL SOCKET (Lógica de la IA)
+// 2. EVENTOS DEL SOCKET
 // ==========================================
 
 socket.on("episode_finished", (data) => {
-  // A. Actualizar textos
-  document.getElementById("game_number").innerText = data.episode_number;
-  if (data.score > localMax) {
-    localMax = data.score;
-    document.getElementById("max_score").innerText = localMax;
-  }
+  // Aseguramos que los datos existen antes de usarlos (Evita undefined)
+  const episode = data.episode_number || 0;
+  const score = data.score || 0;
 
-  // B. Calcular Media Móvil
-  scoresHistory.push(data.score);
+  document.getElementById("game_number").innerText = episode;
+
+  if (data.max_score !== undefined)
+    document.getElementById("max_score").innerText = data.max_score;
+  if (data.max_score_human !== undefined)
+    document.getElementById("max_human").innerText = data.max_score_human;
+
+  // Lógica de la Gráfica: Ahora registra TODO para que no se rompa la línea
+  scoresHistory.push(score);
   if (scoresHistory.length > 50) scoresHistory.shift();
   const sum = scoresHistory.reduce((a, b) => a + b, 0);
   const average = (sum / scoresHistory.length).toFixed(2);
 
-  // C. Actualizar Gráfica
-  scoreChart.data.labels.push(data.episode_number);
-  scoreChart.data.datasets[0].data.push(data.score);
+  scoreChart.data.labels.push(episode);
+  scoreChart.data.datasets[0].data.push(score);
   scoreChart.data.datasets[1].data.push(average);
 
   if (scoreChart.data.labels.length > 100) {
@@ -75,127 +77,103 @@ socket.on("episode_finished", (data) => {
   }
   scoreChart.update();
 
-  // D. Feedback Turbo
-  let turboElem =
-    document.getElementById("turbo_status") ||
-    document.getElementById("turbo_progress");
-  if (turboElem) {
-    turboElem.innerText = data.is_turbo
-      ? "🚀 Modo Turbo Activo..."
-      : "Esperando orden...";
-  }
-
-  // E. PEDIR MAPA DE CALOR AL TERMINAR EPISODIO
-  socket.emit("request_heatmap");
+  if (!data.is_manual) socket.emit("request_heatmap");
 });
 
-// Listener para dibujar el Heatmap
+// Listener del Heatmap (corregido para evitar errores si no existe el canvas)
 socket.on("update_heatmap", (data) => {
-  heatCtx.fillStyle = "#111"; // Fondo oscuro
+  if (!heatCtx) return;
+  heatCtx.fillStyle = "#111";
   heatCtx.fillRect(0, 0, heatCanvas.width, heatCanvas.height);
-
-  const cellSize = 10;
-  const offsetX = 0;
-  const offsetY = heatCanvas.height / 2;
-
   data.forEach((point) => {
-    const x = point.dx * cellSize + offsetX;
-    const y = point.dy * cellSize + offsetY;
-
+    const x = point.dx * 10;
+    const y = point.dy * 10 + heatCanvas.height / 2;
     let color = "rgba(100, 100, 100, 0.5)";
-
-    if (point.value > 0) {
-      const intensity = Math.min(255, point.value * 10);
-      color = `rgb(0, ${intensity}, 0)`;
-    } else if (point.value < 0) {
-      const intensity = Math.min(255, Math.abs(point.value) * 10);
-      color = `rgb(${intensity}, 0, 0)`;
-    }
-
+    if (point.value > 0)
+      color = `rgb(0, ${Math.min(255, point.value * 10)}, 0)`;
+    else if (point.value < 0)
+      color = `rgb(${Math.min(255, Math.abs(point.value) * 10)}, 0, 0)`;
     heatCtx.fillStyle = color;
-    heatCtx.fillRect(x, y, cellSize, cellSize);
+    heatCtx.fillRect(x, y, 10, 10);
   });
 });
 
 // ==========================================
-// 3. FUNCIONES DE INTERFAZ (Botones)
+// 3. FUNCIONES DE INTERFAZ
 // ==========================================
 
+function toggleDuel() {
+  isManual = !isManual;
+  const btn = document.getElementById("btn_duel");
+  btn.innerText = isManual
+    ? "🤖 Devolver Control a IA"
+    : "🎮 Entrar en Modo Humano";
+  btn.style.backgroundColor = isManual ? "#ef4444" : "#22c55e";
+  socket.emit("toggle_manual", { manual: isManual });
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && isManual) {
+    e.preventDefault();
+    socket.emit("human_jump");
+  }
+});
+
 function startTurbo() {
-  const steps = parseInt(document.getElementById("turbo_steps").value);
-  socket.emit("start_turbo", { steps: steps });
+  socket.emit("start_turbo", {
+    steps: parseInt(document.getElementById("turbo_steps").value),
+  });
 }
 
 function resetMemoria() {
-  if (confirm("¿Estás seguro? Esto borrará toda la Q-Table.")) {
+  if (confirm("¿Resetear todo?")) {
     socket.emit("reset_training");
-    scoresHistory = [];
-    scoreChart.data.labels = [];
-    scoreChart.data.datasets[0].data = [];
-    scoreChart.data.datasets[1].data = [];
-    scoreChart.update();
-    localMax = 0;
-    document.getElementById("max_score").innerText = "0";
-    document.getElementById("game_number").innerText = "0";
-    if (document.getElementById("q_size"))
-      document.getElementById("q_size").innerText = "0";
-
-    // Limpiar heatmap al resetear
-    heatCtx.fillStyle = "#111";
-    heatCtx.fillRect(0, 0, heatCanvas.width, heatCanvas.height);
+    setTimeout(() => {
+      location.reload();
+    }, 100);
   }
 }
 
 function updateParams() {
   socket.emit("update_params", {
-    alpha: parseFloat(document.getElementById("alpha").value),
-    gamma: parseFloat(document.getElementById("gamma").value),
-    epsilon: parseFloat(document.getElementById("epsilon").value),
+    alpha: document.getElementById("alpha").value,
+    gamma: document.getElementById("gamma").value,
+    epsilon: document.getElementById("epsilon").value,
   });
 }
 
 function updateSpeed() {
-  const speed = document.getElementById("game_speed").value;
-  document.getElementById("speed_val").innerText = speed + "x";
-  socket.emit("update_speed", { speed: parseInt(speed) });
+  const val = document.getElementById("game_speed").value;
+  document.getElementById("speed_val").innerText = val + "x";
+  socket.emit("update_speed", { speed: parseInt(val) });
 }
 
 // ==========================================
-// 4. RENDERIZADO DEL JUEGO (Canvas Principal)
+// 4. CANVAS DEL JUEGO
 // ==========================================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 socket.on("game_state", (data) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#70c5ce";
+  ctx.fillStyle = data.manual_mode ? "#334155" : "#70c5ce";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Tubos
-  ctx.fillStyle = "#2e7d32";
-  ctx.strokeStyle = "#1b4d1c";
-  ctx.lineWidth = 2;
+  ctx.fillStyle = "#166534";
   data.pipes.forEach((p) => {
     ctx.fillRect(p.x, 0, 50, p.gap_y - 80);
-    ctx.strokeRect(p.x, 0, 50, p.gap_y - 80);
     ctx.fillRect(p.x, p.gap_y + 80, 50, canvas.height);
-    ctx.strokeRect(p.x, p.gap_y + 80, 50, canvas.height);
   });
 
   // Pájaro
-  ctx.fillStyle = "#fdd835";
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 2;
+  ctx.fillStyle = data.manual_mode ? "#3b82f6" : "#facc15";
   ctx.fillRect(50, data.bird_y, 30, 30);
-  ctx.strokeRect(50, data.bird_y, 30, 30);
 
-  // Stats
-  if (document.getElementById("score"))
-    document.getElementById("score").innerText = data.score;
-  if (document.getElementById("q_size"))
-    document.getElementById("q_size").innerText = data.q_size;
-  if (document.getElementById("max_score"))
-    document.getElementById("max_score").innerText = data.max_score;
-  if (document.getElementById("game_number"))
-    document.getElementById("game_number").innerText = data.episode_number;
+  // Stats en tiempo real (Validación para evitar undefined)
+  document.getElementById("game_number").innerText = data.episode_number ?? 0;
+  document.getElementById("score").innerText = data.score ?? 0;
+  document.getElementById("q_size").innerText = data.q_size ?? 0;
+  document.getElementById("max_score").innerText = data.max_score ?? 0;
+  document.getElementById("max_human").innerText = data.max_score_human ?? 0;
 });

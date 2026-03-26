@@ -15,6 +15,16 @@ class Trainer:
         self.is_turbo = False
         self.base_delay = 0.02
         self.speed_multiplier = 1
+        self.manual_mode = False
+        self.next_human_action = 0
+        self.max_score_human = 0
+
+    def reset_full(self):
+        self.agent.q_table = {}
+        self.max_score = 0
+        self.max_score_human = 0
+        self.total_episodes = 0
+        self.game.reset()
 
     def set_speed(self, multiplier):
         self.speed_multiplier = max(0.1, float(multiplier))
@@ -22,45 +32,57 @@ class Trainer:
     def run(self):
         while True:
             if self.is_turbo:
-                time.sleep(0.1)
+                self.socketio.sleep(0.1)
                 continue
 
             state = self.game.get_ai_state()
-            action = self.agent.choose_action(state)
+
+            # --- LÓGICA DE ACCIÓN ---
+            if self.manual_mode:
+                action = self.next_human_action
+                self.next_human_action = 0  # Consumimos el salto
+            else:
+                action = self.agent.choose_action(state)
+
+            # Ejecutar paso
             _, reward, done = self.game.step(action)
-            next_state = self.game.get_ai_state()
-            self.agent.learn(state, action, reward, next_state)
 
+            # Aprender (solo si no es manual)
+            if not self.manual_mode:
+                next_state = self.game.get_ai_state()
+                self.agent.learn(state, action, reward, next_state)
+
+            # Si muere
             if done:
-                # 1. CAPTURAR el score antes del reset
-                final_score = self.game.score
                 self.total_episodes += 1
+                if self.manual_mode:
+                    if self.game.score > self.max_score_human:
+                        self.max_score_human = self.game.score
+                else:
+                    if self.game.score > self.max_score:
+                        self.max_score = self.game.score
 
-                # 2. ACTUALIZAR Récord
-                if final_score > self.max_score:
-                    self.max_score = final_score
-
-                # 3. EMITIR a la gráfica
                 self.socketio.emit(
                     "episode_finished",
                     {
-                        "score": final_score,
-                        "max_score": self.max_score,
                         "episode_number": self.total_episodes,
+                        "score": self.game.score,
+                        "q_size": len(self.agent.q_table),
+                        "max_score": self.max_score,
+                        "max_score_human": self.max_score_human,
+                        "is_manual": self.manual_mode,
                     },
                 )
-
-                # 4. RESETEAR manualmente
                 self.game.reset()
 
-            # Datos constantes para el Canvas y el Panel
             self.socketio.emit(
                 "game_state",
                 {
                     **self.game.get_state(),
-                    "q_size": len(self.agent.q_table),
-                    "epsilon": round(self.agent.epsilon, 2),
                     "max_score": self.max_score,
+                    "max_score_human": self.max_score_human,
+                    "manual_mode": self.manual_mode,
+                    "q_size": len(self.agent.q_table),
                     "episode_number": self.total_episodes,
                 },
             )

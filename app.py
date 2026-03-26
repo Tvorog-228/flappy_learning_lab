@@ -33,9 +33,7 @@ def handle_speed(data):
 
 @socketio.on("reset_training")
 def handle_reset():
-    trainer.agent.q_table = {}
-    trainer.max_score = 0
-    trainer.game.reset()
+    trainer.reset_full()
 
 
 @socketio.on("start_turbo")
@@ -62,6 +60,19 @@ def send_heatmap():
         heatmap_data.append({"dx": dx, "dy": dy, "value": val})
 
     socketio.emit("update_heatmap", heatmap_data)
+
+
+@socketio.on("toggle_manual")
+def handle_toggle_manual(data):
+    trainer.manual_mode = data["manual"]
+    trainer.game.reset()  # Reseteamos al cambiar de modo para que sea justo
+    print(f"🎮 Modo Manual: {trainer.manual_mode}")
+
+
+@socketio.on("human_jump")
+def handle_human_jump():
+    if hasattr(trainer, "manual_mode") and trainer.manual_mode:
+        trainer.next_human_action = 1  # Marcamos que el humano quiere saltar
 
 
 if __name__ == "__main__":

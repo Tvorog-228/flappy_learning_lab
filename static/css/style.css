@@ -67,3 +67,27 @@ button {
     background: #ef4444;
     color: white;
 }
+
+.mini-stats {
+    display: flex;
+    flex-direction: column; /* Alinea los elementos uno debajo de otro */
+    gap: 10px; /* Añade separación entre cada línea */
+    padding: 15px;
+    background: rgba(
+        0,
+        0,
+        0,
+        0.2
+    ); /* Un fondo sutil para que resalten los datos */
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.mini-stats span {
+    font-size: 1.1em;
+    color: #e2e8f0; /* Un blanco grisáceo para que no canse la vista */
+}
+
+.mini-stats b {
+    color: #38bdf8; /* Azul para resaltar los números */
+}

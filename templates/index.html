@@ -11,9 +11,13 @@
             <div class="game-section">
                 <canvas id="gameCanvas" width="400" height="600"></canvas>
                 <div class="mini-stats">
-                    <span>Juego #<b id="game_number">0</b></span>
+                    <span>Juego: <b id="game_number">0</b></span>
                     <span>Score: <b id="score">0</b></span>
-                    <span>Max: <b id="max_score">0</b></span>
+                    <span>Max IA: <b id="max_score">0</b></span>
+                    <span
+                        >Max Humano:
+                        <b id="max_human" style="color: #60a5fa">0</b></span
+                    >
                     <span>Q-Size: <b id="q_size">0</b></span>
                 </div>
             </div>
@@ -22,7 +26,7 @@
                 <h2>⚙️ Configuración IA</h2>
 
                 <div class="control-group">
-                    <label>Alpha:</label>
+                    <label>Alpha ($\alpha$):</label>
                     <input
                         type="number"
                         id="alpha"
@@ -33,7 +37,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Gamma:</label>
+                    <label>Gamma ($\gamma$):</label>
                     <input
                         type="number"
                         id="gamma"
@@ -44,7 +48,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Epsilon:</label>
+                    <label>Epsilon ($\epsilon$):</label>
                     <input
                         type="number"
                         id="epsilon"
@@ -74,6 +78,21 @@
 
                 <hr />
 
+                <div class="control-group">
+                    <button
+                        id="btn_duel"
+                        onclick="toggleDuel()"
+                        class="btn-duel"
+                    >
+                        🎮 Jugar
+                    </button>
+                    <p style="font-size: 0.8em; color: #888; margin-top: 5px">
+                        Usa la <b>Barra Espaciadora</b> para saltar.
+                    </p>
+                </div>
+
+                <hr />
+
                 <h2>🚀 Modo Turbo</h2>
                 <div class="control-group">
                     <input type="number" id="turbo_steps" value="100" />
@@ -93,7 +112,7 @@
             </div>
 
             <div class="heatmap-section">
-                <h2>Heatmap de Q-Table</h2>
+                <h2>HeatMap(Q-Table)</h2>
                 <canvas
                     id="heatCanvas"
                     width="300"
