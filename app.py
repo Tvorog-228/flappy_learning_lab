@@ -23,7 +23,6 @@ def handle_params(data):
     trainer.agent.alpha = float(data["alpha"])
     trainer.agent.gamma = float(data["gamma"])
     trainer.agent.epsilon = float(data["epsilon"])
-    trainer.speed = float(data["speed"])
 
 
 @socketio.on("reset_training")

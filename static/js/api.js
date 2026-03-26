@@ -82,3 +82,19 @@ function resetMemoria() {
     document.getElementById("q_size").innerText = "0";
   }
 }
+
+function updateParams() {
+  // 1. Capturamos los valores de los inputs del HTML
+  const alpha = parseFloat(document.getElementById("alpha").value);
+  const gamma = parseFloat(document.getElementById("gamma").value);
+  const epsilon = parseFloat(document.getElementById("epsilon").value);
+
+  // 2. Los enviamos por el socket al servidor Python
+  socket.emit("update_params", {
+    alpha: alpha,
+    gamma: gamma,
+    epsilon: epsilon,
+  });
+
+  console.log(`🚀 Parámetros enviados: α=${alpha}, γ=${gamma}, ε=${epsilon}`);
+}
